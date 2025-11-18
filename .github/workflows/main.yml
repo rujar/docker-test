@@ -1,0 +1,87 @@
+name: Build, Push, Promote Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_call:
+    inputs:
+      image_name:
+        description: "Docker image name (e.g. ods-vin-lookup)"
+        required: true
+        type: string
+      jf_url:
+        description: "JFrog URL (e.g. mycompany.jfrog.io)"
+        required: true
+        type: string
+        default: "sarangeplus.jfrog.io"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build_and_promote:
+    name: Build, Push & Promote ${{ vars.IMAGE_NAME }}
+    runs-on: ubuntu-latest
+
+    # Define job-level environment variables
+    env:
+      JFROG_CLI_BUILD_NUMBER: ${{ github.run_number }}
+      JF_URL: ${{ secrets.JF_URL }}
+      IMG_NAME: ${{ vars.IMAGE_NAME }}
+      JFROG_CLI_BUILD_NAME: ${{ vars.IMAGE_NAME }}-docker
+      JF_DOCKER_REPO:  ${{ vars.JF_DOCKER_REPO }}
+      TAG: ${{ github.sha }}-${{ vars.IMAGE_NAME }}
+      JF_REGISTRY: ${{ vars.JF_REGISTRY }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Environment Variables
+        run: |
+          echo "JFrog Cli Build Number: $JFROG_CLI_BUILD_NUMBER"
+          echo "JFrog URL:  $JF_URL"
+          echo "Image Name: $IMG_NAME"
+          echo "JFrog Cli Build Name: $JFROG_CLI_BUILD_NAME"
+          echo "Git SHA Tag: $TAG"
+
+      - name: Setup JFrog CLI
+        id: jfrog-cli
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ env.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+        with:
+          disable-auto-build-publish: true
+          # version: 2.80.0
+
+      - name: Docker Login to JFrog
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.JF_REGISTRY }}
+          username: ${{ secrets.JF_USERNAME }}
+          password: ${{ secrets.JF_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_FULL_NAME="${JF_REGISTRY}/${JF_DOCKER_REPO}/${IMG_NAME}"
+          echo "Building Docker image: $IMAGE_FULL_NAME:$TAG"
+          docker build --target $IMG_NAME -t $IMAGE_FULL_NAME:$TAG -f ./Dockerfile .
+
+          echo "Pushing Docker image: $IMAGE_FULL_NAME:$TAG"
+          jf docker push $IMAGE_FULL_NAME:$TAG --build-name="$JFROG_CLI_BUILD_NAME" --build-number="$JFROG_CLI_BUILD_NUMBER" 
+
+          echo "Tagging and pushing latest"
+          docker tag $IMAGE_FULL_NAME:$TAG $IMAGE_FULL_NAME:latest
+          jf docker push $IMAGE_FULL_NAME:latest --build-name="$JFROG_CLI_BUILD_NAME" --build-number="$JFROG_CLI_BUILD_NUMBER" 
+          
+          echo "Successfully built and pushed Docker image"
+          echo "Image: $IMAGE_FULL_NAME:$TAG"
+          echo "Latest: $IMAGE_FULL_NAME:latest"
+
+      - name: Publish Build Info
+        run: |
+          jf rt build-publish "$JFROG_CLI_BUILD_NAME" "$JFROG_CLI_BUILD_NUMBER" 
