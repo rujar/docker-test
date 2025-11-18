@@ -85,3 +85,7 @@ jobs:
       - name: Publish Build Info
         run: |
           jf rt build-publish "$JFROG_CLI_BUILD_NAME" "$JFROG_CLI_BUILD_NUMBER" 
+
+      - name: Scan Build 
+        run: |
+          jf bs "$JFROG_CLI_BUILD_NAME" "$JFROG_CLI_BUILD_NUMBER" 
