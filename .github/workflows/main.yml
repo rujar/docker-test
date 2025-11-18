@@ -88,4 +88,4 @@ jobs:
 
       - name: Scan Build 
         run: |
-          jf bs "$JFROG_CLI_BUILD_NAME" "$JFROG_CLI_BUILD_NUMBER" 
+          jf bs "$JFROG_CLI_BUILD_NAME" "$JFROG_CLI_BUILD_NUMBER"
