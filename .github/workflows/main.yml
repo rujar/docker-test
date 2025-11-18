@@ -69,7 +69,7 @@ jobs:
         run: |
           IMAGE_FULL_NAME="${JF_REGISTRY}/${JF_DOCKER_REPO}/${IMG_NAME}"
           echo "Building Docker image: $IMAGE_FULL_NAME:$TAG"
-          docker build --target $IMG_NAME -t $IMAGE_FULL_NAME:$TAG -f ./Dockerfile .
+          docker build $IMG_NAME -t $IMAGE_FULL_NAME:$TAG -f ./Dockerfile .
 
           echo "Pushing Docker image: $IMAGE_FULL_NAME:$TAG"
           jf docker push $IMAGE_FULL_NAME:$TAG --build-name="$JFROG_CLI_BUILD_NAME" --build-number="$JFROG_CLI_BUILD_NUMBER" 
